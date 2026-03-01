@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NW-B Navigator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { 
+            background-color: #09090b; 
+            color: #e4e4e7; 
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+            touch-action: manipulation; 
+            -webkit-tap-highlight-color: transparent; 
+            margin: 0;
+            overflow: hidden;
+        }
+        
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #18181b; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #3f3f46; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #52525b; }
+
+        .transition-transform { transition: transform 0.3s ease-in-out; }
+        .translate-x-full { transform: translateX(100%); }
+        .translate-x-0 { transform: translateX(0); }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-zinc-950 text-zinc-100 font-sans">
+
+    <!-- Header -->
+    <header class="flex-none h-16 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between px-4 z-30 relative">
+        <div class="flex items-center space-x-3">
+            <h1 class="text-sm font-bold tracking-widest text-zinc-500 uppercase hidden sm:block">NW-B Navigator</h1>
+        </div>
+
+        <div class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center space-x-3">
+            <span class="text-zinc-500 text-[10px] font-bold uppercase tracking-tighter">nw-B next</span>
+            <div id="next-bet-indicator" class="flex items-center justify-center w-12 h-12 border-2 transition-all duration-300 rounded-none bg-zinc-800/50 border-zinc-700 text-zinc-700">
+                <span class="text-2xl font-black">-</span>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-1">
+            <button id="btn-reset-trigger" class="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+            </button>
+            <button id="btn-menu-trigger" class="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all active:scale-95">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Chart Area -->
+    <main class="flex-1 flex flex-col overflow-hidden relative">
+        <div class="flex-1 min-h-0 bg-zinc-950 relative">
+            <canvas id="strategy-chart"></canvas>
+        </div>
+
+        <!-- History Audit Log -->
+        <div id="history-container" class="flex-none bg-zinc-900 border-t border-zinc-800 flex flex-col transition-all duration-300 ease-in-out z-20 rounded-none h-20">
+            <div id="history-header" class="px-4 py-2 border-b border-zinc-800 bg-zinc-950 flex justify-between items-center cursor-pointer hover:bg-zinc-900 transition-colors group h-8 shrink-0">
+                <div class="flex items-center space-x-2 text-zinc-500 group-hover:text-zinc-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="m12 7 0 5 3 3"/></svg>
+                    <span class="text-[10px] font-black uppercase tracking-[0.2em]">Audit Log</span>
+                    <span id="log-count" class="text-[9px] text-zinc-700 font-mono">[0]</span>
+                </div>
+                <div id="history-toggle-icon" class="text-zinc-700 group-hover:text-zinc-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                </div>
+            </div>
+            <div id="history-list" class="flex-1 overflow-y-auto p-0 custom-scroll bg-black/20">
+                <!-- Records injected via script -->
+                <div class="flex flex-col items-center justify-center h-full text-zinc-700 text-[10px] font-bold uppercase tracking-widest italic py-2">
+                    <span>No data</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Keypad Side Panel - Moved to top-0 and Widened to w-64 -->
+    <div id="keypad-backdrop" class="fixed inset-0 z-40 bg-black/30 transition-opacity duration-300 opacity-0 pointer-events-none"></div>
+    <div id="keypad-panel" class="fixed top-0 right-0 z-50 w-64 h-fit bg-zinc-900 border-l border-b border-zinc-800 flex flex-col transition-transform translate-x-full rounded-none shadow-2xl">
+        <div class="flex justify-end items-center px-3 py-2 border-b border-zinc-800 bg-zinc-950">
+            <button id="btn-close-keypad" class="p-1 hover:bg-zinc-800 transition-colors text-zinc-500 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+        </div>
+
+        <div class="p-4 flex flex-col space-y-3">
+            <!-- Winner Buttons -->
+            <div class="grid grid-cols-2 gap-2">
+                <button id="btn-player" class="h-16 flex items-center justify-center border-2 bg-zinc-950 border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:bg-zinc-800 transition-all rounded-none uppercase text-sm font-black tracking-widest">PLAYER</button>
+                <button id="btn-banker" class="h-16 flex items-center justify-center border-2 bg-zinc-950 border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:bg-zinc-800 transition-all rounded-none uppercase text-sm font-black tracking-widest">BANKER</button>
+            </div>
+
+            <!-- YES/NO Buttons -->
+            <div class="grid grid-cols-2 gap-2">
+                <button id="btn-yes" disabled class="h-16 flex items-center justify-center transition-all rounded-none uppercase bg-zinc-800 text-zinc-600 cursor-not-allowed border border-zinc-700 text-xs font-black tracking-widest">YES</button>
+                <button id="btn-no" disabled class="h-16 flex items-center justify-center transition-all rounded-none uppercase bg-zinc-800 text-zinc-600 cursor-not-allowed border border-zinc-700 text-xs font-black tracking-widest">NO</button>
+            </div>
+
+            <!-- Undo Button - Distanced by mt-16 -->
+            <button id="btn-undo" disabled class="w-full h-12 flex items-center justify-center space-x-2 text-[10px] font-bold transition-colors rounded-none uppercase tracking-widest mt-16 text-zinc-700 cursor-not-allowed border border-zinc-800">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                <span>Undo Action</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Reset Modal -->
+    <div id="reset-modal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-zinc-900 border border-zinc-800 p-6 max-w-sm w-full rounded-none">
+            <div class="flex items-center space-x-3 mb-4 text-amber-500">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                <h3 class="text-lg font-bold text-white uppercase tracking-tight">Confirm Reset</h3>
+            </div>
+            <p class="text-zinc-400 text-xs mb-6 leading-relaxed uppercase tracking-wide">
+                All history and performance metrics will be purged. This action is final.
+            </p>
+            <div class="flex flex-col space-y-2">
+                <button id="btn-reset-confirm" class="w-full py-3 text-sm font-bold bg-rose-600 hover:bg-rose-500 text-white uppercase tracking-widest transition-colors">Purge Data</button>
+                <button id="btn-reset-cancel" class="w-full py-3 text-sm font-medium text-zinc-400 hover:bg-zinc-800 border border-zinc-800 uppercase tracking-widest transition-colors">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="./script.js"></script>
+</body>
+</html>
